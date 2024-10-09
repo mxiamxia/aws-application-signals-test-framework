@@ -4,6 +4,9 @@
 name: Sample App Deployment - Node S3
 on:
   workflow_dispatch: # be able to run the workflow on demand
+  push:
+    branches:
+      - test-canary
 
 permissions:
   id-token: write
@@ -18,10 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        aws-region: [ 'af-south-1','ap-east-1','ap-northeast-1','ap-northeast-2','ap-northeast-3','ap-south-1','ap-south-2','ap-southeast-1',
-                      'ap-southeast-2','ap-southeast-3','ap-southeast-4','ca-central-1','eu-central-1','eu-central-2','eu-north-1',
-                      'eu-south-1','eu-south-2','eu-west-1','eu-west-2','eu-west-3','il-central-1','me-central-1','me-south-1', 'sa-east-1',
-                      'us-east-1','us-east-2', 'us-west-1', 'us-west-2' ]
+        aws-region: [ 'us-east-1' ]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,17 +34,17 @@ jobs:
           role-to-assume: arn:aws:iam::${{ env.E2E_TEST_ACCOUNT_ID }}:role/${{ env.E2E_TEST_ROLE_NAME }}
           aws-region: us-east-1
 
-      - name: Retrieve account
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
-        with:
-          secret-ids:
-            ACCOUNT_ID, region-account/${{ matrix.aws-region }}
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ secrets.E2E_TEST_ROLE_ARN }}
-          aws-region: ${{ matrix.aws-region }}
+#      - name: Retrieve account
+#        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+#        with:
+#          secret-ids:
+#            ACCOUNT_ID, region-account/${{ matrix.aws-region }}
+#
+#      - name: Configure AWS Credentials
+#        uses: aws-actions/configure-aws-credentials@v4
+#        with:
+#          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/${{ secrets.E2E_TEST_ROLE_ARN }}
+#          aws-region: ${{ matrix.aws-region }}
 
       - name: Build Sample App Zip
         working-directory: sample-apps/node
@@ -52,5 +52,24 @@ jobs:
 
       - name: Upload to S3
         working-directory: sample-apps/node
-        run: aws s3api put-object --bucket ${{ secrets.APP_SIGNALS_E2E_EC2_JAR }}-prod-${{ matrix.aws-region }} --body ./node-sample-app.zip --key node-sample-app.zip
+        run: aws s3api put-object --bucket ${{ secrets.APP_SIGNALS_E2E_EC2_JAR }}-prod-${{ matrix.aws-region }}-min --body ./node-sample-app.zip --key node-sample-app.zip
+
+      - name: Build Lambda Sample App
+        uses: actions/checkout@v4
+        with:
+          repository: 'aws-observability/aws-otel-js-instrumentation'
+      - name: Setup Layer Tools
+        shell: bash
+        run: npm install
+        working-directory: lambda-layer
+      - name: Build Lambda Sample App
+        shell: bash
+        run: npm install
+        working-directory: lambda-layer/sample-apps/aws-sdk
+
+      - name: Upload to Lambda Sample App to S3
+        working-directory: lambda-layer/sample-apps/aws-sdk
+        run: aws s3api put-object --bucket ${{ secrets.APP_SIGNALS_E2E_EC2_JAR }}-prod-${{ matrix.aws-region }}-min --body ./build/function.zip --key function.zip
+
+
 

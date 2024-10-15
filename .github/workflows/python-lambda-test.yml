@@ -89,17 +89,17 @@ jobs:
       - name: Generate testing id
         run: echo TESTING_ID="${{ github.run_id }}-${{ github.run_number }}-${RANDOM}" >> $GITHUB_ENV
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ env.E2E_TEST_ACCOUNT_ID }}:role/${{ env.E2E_TEST_ROLE_NAME }}
-          aws-region: us-east-1
-
-      - name: Retrieve account
-        uses: aws-actions/aws-secretsmanager-get-secrets@v1
-        with:
-          secret-ids:
-            ACCOUNT_ID, region-account/${{ env.E2E_TEST_AWS_REGION }}
+#      - name: Configure AWS Credentials
+#        uses: aws-actions/configure-aws-credentials@v4
+#        with:
+#          role-to-assume: arn:aws:iam::${{ env.E2E_TEST_ACCOUNT_ID }}:role/${{ env.E2E_TEST_ROLE_NAME }}
+#          aws-region: us-east-1
+#
+#      - name: Retrieve account
+#        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+#        with:
+#          secret-ids:
+#            ACCOUNT_ID, region-account/${{ env.E2E_TEST_AWS_REGION }}
 
       - name: Configure AWS Credentials
         if: ${{ github.event.repository.name == 'aws-application-signals-test-framework' }}
@@ -111,7 +111,8 @@ jobs:
       - name: Set Lambda Layer artifact directory path
         run: echo ARTIFACTS_DIR="${{ github.workspace }}/lambda_artifacts" >> $GITHUB_ENV
 
-      - name: Download Lambda Layer and Function artifacts
+      - name: Download Lambda Layer and Function artifacts for E2E Test
+        if: ${{ github.event.inputs.CALLER_WORKFLOW_NAME != 'appsignals-python-e2e-lambda-canary-test' }}
         run: |
           aws s3 cp s3://${{ env.STAGING_S3_BUCKET }}/layer-${{ github.run_id }}.zip ${{ env.ARTIFACTS_DIR }}/layer.zip |
           aws s3 cp s3://${{ env.STAGING_S3_BUCKET }}/function-${{ github.run_id }}.zip ${{ env.ARTIFACTS_DIR }}/pyfunction.zip
